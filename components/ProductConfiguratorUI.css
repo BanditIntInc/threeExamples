@@ -1,0 +1,366 @@
+.product-configurator-ui {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 280px;
+    background: rgba(45, 45, 48, 0.95);
+    border: 1px solid #3c3c3c;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.configurator-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, #000000 0%, #454545 100%);
+    border-bottom: 1px solid #000EFF;
+    border-radius: 8px 8px 0 0;
+}
+
+.configurator-header h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.expand-toggle {
+    background: none;
+    border: none;
+    color: #8389ff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.expand-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.configurator-content {
+    padding: 12px;
+}
+
+.control-section {
+    margin-bottom: 14px;
+}
+
+.control-section:last-child {
+    margin-bottom: 0;
+}
+
+.control-label {
+    display: block;
+    color: #cccccc;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+/* Material Selection */
+.material-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.material-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    background: #3c3c3c;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 11px;
+    color: #cccccc;
+    text-transform: capitalize;
+}
+
+.material-button:hover {
+    border-color: #8389ff;
+    background: #4a4a4a;
+}
+
+.material-button.active {
+    border-color: #000EFF;
+    background: linear-gradient(135deg, #000EFF 0%, #515aff 100%);
+    color: white;
+}
+
+.material-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-bottom: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Material preview colors */
+.material-preview.metal {
+    background: linear-gradient(135deg, #e6e6e6 0%, #999999 100%);
+}
+
+.material-preview.plastic {
+    background: linear-gradient(135deg, #ff6b6b 0%, #cc3333 100%);
+}
+
+.material-preview.glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.material-preview.wood {
+    background: linear-gradient(135deg, #d4a574 0%, #8B4513 100%);
+}
+
+/* Color Controls */
+.color-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.color-picker {
+    width: 100%;
+    height: 32px;
+    border: 2px solid #666666;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 4px;
+}
+
+.color-picker::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.color-presets {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.color-preset {
+    width: 26px;
+    height: 26px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg-color);
+}
+
+.color-preset:hover {
+    border-color: #8389ff;
+    transform: scale(1.1);
+}
+
+.color-preset.active {
+    border-color: #000EFF;
+    box-shadow: 0 0 8px rgba(0, 14, 255, 0.5);
+    transform: scale(1.1);
+}
+
+/* File Upload */
+.file-upload-container {
+    position: relative;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-upload-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: #454545;
+    border: 1px solid #666666;
+    border-radius: 6px;
+    color: #cccccc;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    justify-content: center;
+    text-align: center;
+}
+
+.file-upload-button:hover {
+    background: #555555;
+    border-color: #8389ff;
+}
+
+.file-upload-button span {
+    font-size: 16px;
+}
+
+.supported-formats {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.supported-formats small {
+    color: #999999;
+    font-size: 10px;
+}
+
+/* Export Button */
+.export-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #000EFF 0%, #515aff 100%);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.export-button:hover {
+    background: linear-gradient(135deg, #0012cc 0%, #3d47cc 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 14, 255, 0.3);
+}
+
+.export-button span {
+    font-size: 16px;
+}
+
+/* Control Button (for toggles like auto-rotate) */
+.control-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: #555555;
+    border: 2px solid #666666;
+    border-radius: 6px;
+    color: #cccccc;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.control-button:hover {
+    background: #666666;
+    border-color: #8389ff;
+    transform: translateY(-1px);
+}
+
+.control-button.active {
+    background: linear-gradient(135deg, #28a745 0%, #20c657 100%);
+    border-color: #28a745;
+    color: white;
+}
+
+.control-button.active:hover {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    border-color: #1e7e34;
+}
+
+.control-button span {
+    font-size: 16px;
+}
+
+
+/* Instructions */
+.instructions {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.instructions p {
+    margin: 2px 0;
+    color: #999999;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.instructions p:last-child {
+    margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .product-configurator-ui {
+        width: 260px;
+        top: 10px;
+        right: 10px;
+    }
+    
+    .material-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .configurator-content {
+        padding: 10px;
+    }
+    
+    .control-section {
+        margin-bottom: 12px;
+    }
+}
+
+/* Animation for smooth transitions */
+.configurator-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Focus states for accessibility */
+.material-button:focus,
+.file-upload-button:focus,
+.export-button:focus,
+.control-button:focus,
+.expand-toggle:focus {
+    outline: 2px solid #8389ff;
+    outline-offset: 2px;
+}
+
+/* Scrollbar styling for overflow content */
+.configurator-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.configurator-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.configurator-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.configurator-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
