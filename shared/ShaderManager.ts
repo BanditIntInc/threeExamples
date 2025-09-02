@@ -141,6 +141,47 @@ export class ShaderManager {
             }
         });
 
+        // Shield Shader with Fresnel Effect
+        this.shaders.set('shield', {
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vViewPosition = mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform float opacity;
+                uniform vec3 color;
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                
+                void main() {
+                    // Calculate view direction (camera is at origin in view space)
+                    vec3 viewDirection = normalize(-vViewPosition);
+                    
+                    // Fresnel effect - transparent when facing camera, opaque at edges
+                    float fresnel = abs(dot(viewDirection, normalize(vNormal)));
+                    
+                    // Create rim lighting effect - only edges are visible
+                    float rim = 1.0 - fresnel;
+                    float alpha = pow(rim, 4.0) * opacity;
+                    
+                    // Discard fragments that are too transparent to avoid depth issues
+                    if (alpha < 0.01) discard;
+                    
+                    gl_FragColor = vec4(color, alpha);
+                }
+            `,
+            uniforms: {
+                opacity: { value: 0.5 },
+                color: { value: new THREE.Color(0x00aaff) }
+            }
+        });
+
         this.initialized = true;
     }
 

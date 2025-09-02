@@ -3,6 +3,9 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { LoadingBar } from '../../utils/LoadingBar';
 import { ShaderManager } from './shared/ShaderManager';
 import { ThreeManager } from './shared/ThreeManager';
+import { logger } from '../../utils/logger';
+import { texturePreloader, TEXTURE_URLS } from '../../utils/texturePreloader';
+import { modelPreloader, MODEL_URLS } from '../../utils/modelPreloader';
 
 export class ThreeSceneA {
     public readonly message: string = "Interactive F16 Fighter Jet Flight Simulation. Experience realistic aerial movement with dynamic sky and atmospheric effects in this immersive Three.js demonstration.";
@@ -69,7 +72,7 @@ export class ThreeSceneA {
             },
             undefined,
             (error) => {
-                console.error('Error loading sky texture:', error);
+                logger.error(`Error loading sky texture:, ${error}`, 'ThreeSceneA');
             }
         );
 
@@ -113,7 +116,7 @@ export class ThreeSceneA {
             },
             undefined,
             (error) => {
-                console.error('Error loading diffuse map:', error);
+                logger.error(`Error loading diffuse map:, ${error}`, 'ThreeSceneA');
             }
         );
         
@@ -131,7 +134,7 @@ export class ThreeSceneA {
             },
             undefined,
             (error) => {
-                console.error('Error loading normal map:', error);
+                logger.error(`Error loading normal map:, ${error}`, 'ThreeSceneA');
             }
         );
         
@@ -155,7 +158,7 @@ export class ThreeSceneA {
         this.threeManager.add(groundMesh);
     }
 
-    private loadF16Model(): void {
+    private async loadF16Model(): Promise<void> {
         // Simulate initial loading stages
         this.loadingBar?.updateProgress(10);
         
@@ -170,80 +173,143 @@ export class ThreeSceneA {
             }
         }, 200);
         
-        this.loader.load(
-            '/models/F16.fbx',
-            (object) => {
-                clearInterval(progressTimer);
-                this.loadingBar?.updateProgress(90);
-                this.f16Model = object;
-                this.f16Model.scale.setScalar(0.01);
-                this.f16Model.position.set(0, 20, 0);
-                this.f16Model.rotation.y = Math.PI; // Turn around 180 degrees
-                this.f16Model.castShadow = true;
-                this.f16Model.receiveShadow = true;
-                
-                // Apply reflective material to F16
-                this.f16Model.traverse((child: any) => {
-                    if (child.isMesh) {
-                        // Create reflective material based on existing material
-                        const originalMaterial = child.material;
-                        
-                        if (originalMaterial) {
-                            // Create new PBR material with reflectivity
-                            const reflectiveMaterial = new THREE.MeshStandardMaterial({
-                                map: originalMaterial.map,
-                                normalMap: originalMaterial.normalMap,
-                                roughness: 0.2,
-                                metalness: 0.8,
-                                envMapIntensity: 1.2,
-                                color: originalMaterial.color || 0xeeeeee,
-                                emissive: 0x111111,
-                                emissiveIntensity: 0.1
-                            });
-                            
-                            child.material = reflectiveMaterial;
-                        } else {
-                            // Fallback material for parts without materials
-                            const defaultReflectiveMaterial = new THREE.MeshStandardMaterial({
-                                roughness: 0.3,
-                                metalness: 0.7,
-                                color: 0xdddddd,
-                                envMapIntensity: 1.0,
-                                emissive: 0x111111,
-                                emissiveIntensity: 0.1
-                            });
-                            
-                            child.material = defaultReflectiveMaterial;
-                        }
-                        
-                        child.castShadow = true;
-                        child.receiveShadow = true;
+        // Get F16 model from preloader cache or load if not available
+        let cachedModel = modelPreloader.getModel(MODEL_URLS.F16);
+        if (cachedModel) {
+            clearInterval(progressTimer);
+            logger.info('Using preloaded F-16 model', 'ThreeSceneA');
+            this.loadingBar?.updateProgress(90);
+            this.f16Model = cachedModel;
+            
+            await this.setupF16Model();
+        } else {
+            logger.warn('F-16 model not preloaded, loading now...', 'ThreeSceneA');
+            this.loader.load(
+                MODEL_URLS.F16,
+                async (object) => {
+                    clearInterval(progressTimer);
+                    logger.info('F-16 FBX model loaded successfully', 'ThreeSceneA');
+                    this.loadingBar?.updateProgress(90);
+                    this.f16Model = object;
+                    
+                    await this.setupF16Model();
+                },
+                (progress) => {
+                    if (progress.lengthComputable) {
+                        const percentComplete = (progress.loaded / progress.total) * 100;
+                        this.loadingBar?.updateProgress(Math.min(percentComplete, 85));
                     }
-                });
-                
-                this.threeManager.add(this.f16Model);
-                
-                // Complete loading
-                this.loadingBar?.updateProgress(100);
-                this.isLoaded = true;
-                
-                // Auto-hide loader after brief delay to show 100%
-                setTimeout(() => {
-                    this.hideLoader();
-                }, 1000);
-            },
-            (progress) => {
-                if (progress.total > 0) {
-                    const loadProgress = 10 + (progress.loaded / progress.total * 80);
-                    this.loadingBar?.updateProgress(Math.min(90, loadProgress));
+                },
+                (error) => {
+                    clearInterval(progressTimer);
+                    logger.error(`FBX loading error: ${error}`, 'ThreeSceneA');
+                    this.loadingBar?.updateProgress(100, `Failed to load F-16 model: ${error}`);
                 }
-            },
-            (error) => {
-                clearInterval(progressTimer);
-                console.error('Error loading F16 model:', error);
-                this.loadingBar?.showError('Failed to Load F16 Model');
+            );
+        }
+    }
+    
+    private async setupF16Model(): Promise<void> {
+        if (!this.f16Model) return;
+        
+        this.f16Model.scale.setScalar(0.01);
+        this.f16Model.position.set(0, 20, 0);
+        this.f16Model.rotation.y = Math.PI; // Turn around 180 degrees
+        this.f16Model.castShadow = true;
+        this.f16Model.receiveShadow = true;
+        
+        // Get F16 texture from preloader cache or load if not available
+        let f16Texture = texturePreloader.getTexture(TEXTURE_URLS.F16);
+        if (!f16Texture) {
+            logger.warn('F-16 texture not preloaded, loading now...', 'ThreeSceneA');
+            f16Texture = await texturePreloader.preloadTexture(TEXTURE_URLS.F16);
+        } else {
+            logger.debug('Using preloaded F-16 texture', 'ThreeSceneA');
+        }
+        
+        // Apply reflective material to F16, preserving transparency
+        this.f16Model.traverse((child: any) => {
+            if (child.isMesh) {
+                const originalMaterial = child.material;
+                let wasTransparent = false;
+                let originalOpacity = 1.0;
+                let wasBlack = false;
+                let originalColor = 0xeeeeee;
+                        
+                // Check if original material was transparent or black
+                if (originalMaterial) {
+                    if (Array.isArray(originalMaterial)) {
+                        // Handle material array - check first material
+                        const mat = originalMaterial[0];
+                        wasTransparent = mat?.transparent || mat?.opacity < 1.0;
+                        originalOpacity = mat?.opacity || 1.0;
+                        
+                        // Check if material is black/very dark
+                        if (mat?.color) {
+                            const color = mat.color;
+                            const brightness = (color.r + color.g + color.b) / 3;
+                            wasBlack = brightness < 0.1; // Very dark threshold
+                            originalColor = color.getHex();
+                        }
+                    } else {
+                        wasTransparent = originalMaterial.transparent || originalMaterial.opacity < 1.0;
+                        originalOpacity = originalMaterial.opacity || 1.0;
+                        
+                        // Check if material is black/very dark
+                        if (originalMaterial.color) {
+                            const color = originalMaterial.color;
+                            const brightness = (color.r + color.g + color.b) / 3;
+                            wasBlack = brightness < 0.1; // Very dark threshold
+                            originalColor = color.getHex();
+                        }
+                    }
+                }
+                
+                // Create material - textured for main body, untextured for transparent/black parts
+                const materialConfig: any = {
+                    roughness: 0.2,
+                    metalness: 0.8,
+                    envMapIntensity: 1.2,
+                    color: wasBlack ? originalColor : 0xeeeeee,
+                    emissive: 0x111111,
+                    emissiveIntensity: 0.1,
+                    transparent: wasTransparent,
+                    opacity: wasTransparent ? originalOpacity : 1.0,
+                    alphaTest: wasTransparent ? 0.1 : 0.0
+                };
+                
+                // Only apply texture to regular opaque materials (not transparent or black)
+                if (!wasTransparent && !wasBlack) {
+                    materialConfig.map = f16Texture;
+                }
+                
+                const reflectiveMaterial = new THREE.MeshStandardMaterial(materialConfig);
+                
+                child.material = reflectiveMaterial;
+                
+                child.castShadow = !wasTransparent; // Transparent objects usually don't cast shadows
+                child.receiveShadow = true;
+                
+                if (wasTransparent) {
+                    logger.debug(`Preserved transparency on F-16 mesh: ${child.name}, opacity: ${originalOpacity}`, 'ThreeSceneA');
+                }
+                
+                if (wasBlack) {
+                    logger.debug(`Preserved black material on F-16 mesh: ${child.name}, color: ${originalColor.toString(16)}`, 'ThreeSceneA');
+                }
             }
-        );
+        });
+        
+        this.threeManager.add(this.f16Model);
+        
+        // Complete loading
+        this.loadingBar?.updateProgress(100);
+        this.isLoaded = true;
+        
+        // Auto-hide loader after brief delay to show 100%
+        setTimeout(() => {
+            this.hideLoader();
+        }, 1000);
     }
 
     private createFlightPath(): void {
@@ -301,11 +367,30 @@ export class ThreeSceneA {
     }
 
     private createInfoOverlay(info: { title: string; description: string; offset: { x: number; y: number } }): void {
-        // Remove existing overlay
+        // First, cleanup any existing overlays globally to prevent pollution
+        ThreeSceneA.cleanupAllOverlays();
+        
+        // Only create overlay if we're in valid ThreeSceneA contexts, but exclude OnePagePortfolio
+        const currentPath = window.location.pathname;
+        const isInOnePagePortfolio = currentPath.includes('/portfolio/one_page_portfolio');
+        const hasThreeSceneACanvas = document.querySelector('#threeSceneA-canvas') !== null;
+        const isInDevView = currentPath.includes('/dev/1');
+        const isInSplashScreen = currentPath === '/' || currentPath === '';
+        
+        // Allow overlays in dev view, splash screen, or when SceneA canvas is present, but NOT in OnePagePortfolio
+        const shouldCreateOverlay = !isInOnePagePortfolio && (isInDevView || isInSplashScreen || hasThreeSceneACanvas);
+        
+        if (!shouldCreateOverlay) {
+            logger.info('ThreeSceneA: Preventing overlay creation - in restricted context or OnePagePortfolio', 'ThreeSceneA');
+            return;
+        }
+        
+        // Remove existing overlay for this instance
         this.removeInfoOverlay();
 
         // Create overlay element
         this.infoOverlay = document.createElement('div');
+        this.infoOverlay.className = 'scene-a-info-overlay';
         this.infoOverlay.style.position = 'fixed';
         this.infoOverlay.style.top = '50%';
         this.infoOverlay.style.left = '50%';
@@ -320,6 +405,8 @@ export class ThreeSceneA {
         this.infoOverlay.style.fontFamily = 'Arial, sans-serif';
         this.infoOverlay.style.zIndex = '1000';
         this.infoOverlay.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
+        this.infoOverlay.dataset.sceneAOverlay = 'true';
+        this.infoOverlay.dataset.sceneAInstanceId = `sceneA-${Date.now()}`;
         
         // Add pointer arrow
         const arrow = document.createElement('div');
@@ -432,53 +519,59 @@ export class ThreeSceneA {
             if (this.manualControl) {
                 this.handleManualFlight();
             } else if (!this.isPaused) {
-                // Track flight distance
-                this.flightDistance += 0.5;
-                
-                // Check for waypoint triggers
+                // Check for waypoint triggers BEFORE moving
                 this.checkWaypointTrigger();
                 
-                // Simple forward flight
-                this.f16Model.translateZ(0.5);
-                
-                // Calculate turn rate for banking
-                const currentRotationY = this.f16Model.rotation.y;
-                const turnRate = currentRotationY - this.previousRotationY;
-                this.previousRotationY = currentRotationY;
-                
-                // Keep it in bounds - turn around if too far
-                const turnSpeed = 0.01;
-                let isTurning = false;
-                
-                if (this.f16Model.position.z < -200) {
-                    this.f16Model.rotation.y += turnSpeed;
-                    isTurning = true;
-                    this.resetWaypoints();
-                } else if (this.f16Model.position.z > 200) {
-                    this.f16Model.rotation.y += turnSpeed;
-                    isTurning = true;
-                    this.resetWaypoints();
-                } else if (this.f16Model.position.x < -200) {
-                    this.f16Model.rotation.y += turnSpeed;
-                    isTurning = true;
-                    this.resetWaypoints();
-                } else if (this.f16Model.position.x > 200) {
-                    this.f16Model.rotation.y += turnSpeed;
-                    isTurning = true;
-                    this.resetWaypoints();
+                // Only move if still not paused after waypoint check
+                if (!this.isPaused) {
+                    // Track flight distance
+                    this.flightDistance += 0.5;
+                    
+                    // Simple forward flight
+                    this.f16Model.translateZ(0.5);
                 }
                 
-                // Apply banking based on turning
-                if (isTurning) {
-                    const targetBank = -turnSpeed * 60; // Banking angle proportional to turn rate (negative for correct direction)
-                    this.bankAngle = THREE.MathUtils.lerp(this.bankAngle, targetBank, 0.1);
-                } else {
-                    // Return to level flight when not turning
-                    this.bankAngle = THREE.MathUtils.lerp(this.bankAngle, 0, 0.05);
+                // Only handle turning and banking if not paused
+                if (!this.isPaused) {
+                    // Calculate turn rate for banking
+                    const currentRotationY = this.f16Model.rotation.y;
+                    const turnRate = currentRotationY - this.previousRotationY;
+                    this.previousRotationY = currentRotationY;
+                    
+                    // Keep it in bounds - turn around if too far
+                    const turnSpeed = 0.01;
+                    let isTurning = false;
+                    
+                    if (this.f16Model.position.z < -200) {
+                        this.f16Model.rotation.y += turnSpeed;
+                        isTurning = true;
+                        this.resetWaypoints();
+                    } else if (this.f16Model.position.z > 200) {
+                        this.f16Model.rotation.y += turnSpeed;
+                        isTurning = true;
+                        this.resetWaypoints();
+                    } else if (this.f16Model.position.x < -200) {
+                        this.f16Model.rotation.y += turnSpeed;
+                        isTurning = true;
+                        this.resetWaypoints();
+                    } else if (this.f16Model.position.x > 200) {
+                        this.f16Model.rotation.y += turnSpeed;
+                        isTurning = true;
+                        this.resetWaypoints();
+                    }
+                    
+                    // Apply banking based on turning
+                    if (isTurning) {
+                        const targetBank = -turnSpeed * 60; // Banking angle proportional to turn rate (negative for correct direction)
+                        this.bankAngle = THREE.MathUtils.lerp(this.bankAngle, targetBank, 0.1);
+                    } else {
+                        // Return to level flight when not turning
+                        this.bankAngle = THREE.MathUtils.lerp(this.bankAngle, 0, 0.05);
+                    }
+                    
+                    // Apply banking rotation
+                    this.f16Model.rotation.z = this.bankAngle;
                 }
-                
-                // Apply banking rotation
-                this.f16Model.rotation.z = this.bankAngle;
             }
             
             // Update camera to follow F16 smoothly
@@ -523,7 +616,41 @@ export class ThreeSceneA {
         // Clean up info overlay
         this.removeInfoOverlay();
         
+        // Clean up any remaining SceneA overlays that might be stuck
+        ThreeSceneA.cleanupAllOverlays();
+        
         this.threeManager.dispose();
+    }
+
+    // Static method to clean up any remaining SceneA overlays
+    public static cleanupAllOverlays(): void {
+        try {
+            // Clean up by data attribute
+            const overlays = document.querySelectorAll('[data-scene-a-overlay="true"]');
+            overlays.forEach(overlay => {
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch (error) {
+                    logger.warn(`Error removing SceneA overlay:, ${error}`, 'ThreeSceneA');
+                }
+            });
+
+            // Clean up by class name as backup
+            const overlaysByClass = document.querySelectorAll('.scene-a-info-overlay');
+            overlaysByClass.forEach(overlay => {
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch (error) {
+                    logger.warn(`Error removing SceneA overlay by class:, ${error}`, 'ThreeSceneA');
+                }
+            });
+        } catch (error) {
+            logger.error(`Error in ThreeSceneA.cleanupAllOverlays():, ${error}`, 'ThreeSceneA');
+        }
     }
 
     private handleKeyDown = (event: KeyboardEvent) => {
